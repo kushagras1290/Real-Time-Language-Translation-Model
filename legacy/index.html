@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elegant Translation App</title>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2c3e50;
+            --background-color: #ecf0f1;
+            --text-color: #34495e;
+            --border-radius: 8px;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 20px;
+            margin: 0;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        select, textarea, button {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+            font-size: 16px;
+        }
+        
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23333' viewBox='0 0 12 12'%3E%3Cpath d='M10.293 3.293L6 7.586 1.707 3.293A1 1 0 0 0 .293 4.707l5 5a1 1 0 0 0 1.414 0l5-5a1 1 0 1 0-1.414-1.414z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 12px;
+        }
+        
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        #result {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: var(--border-radius);
+            border-left: 5px solid var(--primary-color);
+        }
+        
+        #translationText {
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--secondary-color);
+        }
+        
+        #audioInput {
+            text-align: center;
+        }
+        
+        #recordButton {
+            background-color: #e74c3c;
+        }
+        
+        #recordButton:hover {
+            background-color: #c0392b;
+        }
+        
+        audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Elegant Translation App</h1>
+        <form id="translationForm">
+            <div class="input-group">
+                <label for="sourceLang">Source Language:</label>
+                <select id="sourceLang" required>
+                    <option value="">Select source language</option>
+                    {% for lang in languages %}
+                    <option value="{{ lang.code }}">{{ lang.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label for="targetLang">Target Language:</label>
+                <select id="targetLang" required>
+                    <option value="">Select target language</option>
+                    {% for lang in languages %}
+                    <option value="{{ lang.code }}">{{ lang.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label for="inputType">Input Type:</label>
+                <select id="inputType" required>
+                    <option value="text">Text</option>
+                    <option value="audio">Audio</option>
+                </select>
+            </div>
+            
+            <div id="textInput" class="input-group">
+                <label for="textToTranslate">Text to Translate:</label>
+                <textarea id="textToTranslate" rows="4"></textarea>
+            </div>
+            
+            <div id="audioInput" style="display: none;">
+                <button type="button" id="recordButton">Record Audio</button>
+                <audio id="audioPlayback" controls style="display: none;"></audio>
+            </div>
+            
+            <button type="submit">Translate</button>
+        </form>
+        
+        <div id="result" style="display: none;">
+            <h2>Translation Result:</h2>
+            <p id="translationText"></p>
+            <audio id="translationAudio" controls style="display: none;"></audio>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"></script>
+    <script>
+        // JavaScript code remains the same as in the previous version
+        const form = document.getElementById('translationForm');
+        const inputType = document.getElementById('inputType');
+        const textInput = document.getElementById('textInput');
+        const audioInput = document.getElementById('audioInput');
+        const recordButton = document.getElementById('recordButton');
+        const audioPlayback = document.getElementById('audioPlayback');
+        const result = document.getElementById('result');
+        const translationText = document.getElementById('translationText');
+        const translationAudio = document.getElementById('translationAudio');
+
+        let mediaRecorder;
+        let audioChunks = [];
+
+        inputType.addEventListener('change', () => {
+            if (inputType.value === 'text') {
+                textInput.style.display = 'block';
+                audioInput.style.display = 'none';
+            } else {
+                textInput.style.display = 'none';
+                audioInput.style.display = 'block';
+            }
+        });
+
+        recordButton.addEventListener('click', async () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                recordButton.textContent = 'Record Audio';
+            } else {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.addEventListener('dataavailable', (event) => {
+                    audioChunks.push(event.data);
+                });
+
+                mediaRecorder.addEventListener('stop', () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    audioPlayback.src = URL.createObjectURL(audioBlob);
+                    audioPlayback.style.display = 'block';
+                });
+
+                mediaRecorder.start();
+                recordButton.textContent = 'Stop Recording';
+            }
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData();
+            formData.append('source_lang', document.getElementById('sourceLang').value);
+            formData.append('target_lang', document.getElementById('targetLang').value);
+            formData.append('input_type', inputType.value);
+
+            if (inputType.value === 'text') {
+                formData.append('text', document.getElementById('textToTranslate').value);
+            } else {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                formData.append('audio', audioBlob, 'recording.wav');
+            }
+
+            try {
+                const response = await axios.post('/translate', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+
+                translationText.textContent = response.data.translation;
+                result.style.display = 'block';
+
+                if (response.data.audio) {
+                    const audioBlob = new Blob([new Uint8Array(response.data.audio.split('').map(c => c.charCodeAt(0)))], { type: 'audio/mp3' });
+                    translationAudio.src = URL.createObjectURL(audioBlob);
+                    translationAudio.style.display = 'block';
+                } else {
+                    translationAudio.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred during translation. Please try again.');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,196 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design system: editorial broadcast console.
+ *
+ * Warm bone paper, ink black, a single vermillion accent. The reference points
+ * are Swiss editorial layout and interpreter-booth hardware, not the dark
+ * gradient dashboards this kind of app usually gets.
+ *
+ * Typography does the heavy lifting:
+ *   Fraunces    - display. Variable, with optical sizing and a deliberate
+ *                 "wonk" axis, so headings have real character.
+ *   IBM Plex Sans - UI. Chosen deliberately: Plex is the most script-complete
+ *                 open family available (Devanagari, Arabic, Thai, JP, KR, SC,
+ *                 TC siblings), which matters when the product renders 202
+ *                 languages.
+ *   IBM Plex Mono - technical readouts: codes, latencies, engine names.
+ */
+
+@layer base {
+  :root {
+    color-scheme: light;
+
+    /* Ground */
+    --paper: #f2efe6;
+    --paper-raised: #fbf9f4;
+    --paper-sunken: #e9e5d9;
+
+    /* Ink */
+    --ink: #14130e;
+    --ink-muted: #57534a;
+    --ink-faint: #8b8579;
+
+    /* Structure */
+    --rule: #d5cfc0;
+    --rule-strong: #b8b1a0;
+
+    /* Accent: vermillion. Used sparingly, for live state and primary action. */
+    --accent: #cf3a17;
+    --accent-hover: #b53213;
+    --accent-wash: #f7e8e2;
+
+    /* Supporting signals */
+    --signal-live: #1c6b3f;
+    --signal-warn: #a3600a;
+  }
+
+  * {
+    border-color: var(--rule);
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--paper);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    font-feature-settings: 'kern' 1, 'liga' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Paper grain. A single inline SVG turbulence keeps it to zero requests, and
+     the low opacity stops it reading as noise on a high-DPI display. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0.28;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+    mix-blend-mode: multiply;
+  }
+
+  /* Numbers in tables, timers and readouts must not jitter as they change. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: var(--paper-raised);
+  }
+
+  /* Thin, ink-coloured scrollbars so they read as part of the page. */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--rule-strong);
+    border: 3px solid var(--paper);
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--ink-faint);
+  }
+
+  /* Focus rings: square, offset, ink-coloured. Consistent with the hairline
+     rules rather than the usual soft glow. */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Display type. `opsz` and `wonk` are Fraunces variable axes; wonk enables
+     the alternate glyph shapes that give it its character at large sizes. */
+  .display {
+    font-family: 'Fraunces', Georgia, serif;
+    font-variation-settings: 'SOFT' 0, 'WONK' 1, 'opsz' 100;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 0.95;
+  }
+
+  .mono {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  /* Small uppercase labels used throughout for field names and metadata. */
+  .label {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+
+  /* Editorial card: hairline rule, square corners, raised paper.
+     The background must be fully opaque — this is used for overlays that float
+     above page content. */
+  .panel {
+    background-color: var(--paper-raised);
+    border: 1px solid var(--rule);
+  }
+
+  /* Staggered entrance. One orchestrated page load reads as more considered
+     than scattered micro-interactions.
+
+     Note: `animation` creates a stacking context, so any section using this
+     traps its children's z-index. Sections that contain floating overlays must
+     therefore carry an explicit z-index of their own — see `.layer-*` below. */
+  .reveal {
+    animation: reveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* Explicit paint order between sibling stacking contexts. Without these the
+     language dropdown renders *behind* the translation panel simply because
+     that panel appears later in the document. */
+  .layer-raised {
+    position: relative;
+    z-index: 40;
+  }
+
+  .layer-base {
+    position: relative;
+    z-index: 10;
+  }
+
+  @keyframes reveal {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}

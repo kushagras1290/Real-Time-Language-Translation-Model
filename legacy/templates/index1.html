@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real Time Language Translator</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .content {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            width: 90%;
+            max-width: 500px;
+        }
+        h1 {
+            color: #000000;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .relative {
+            position: relative;
+        }
+        select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            background-color: rgba(255, 255, 255, 0.2);
+            color: #040404;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        select:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px #000000;
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            background-color: #ffd166;
+            color: #2d334a;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            background-color: #ffb347;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: rgb(251, 139, 54);
+            font-size: 0.9em;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        #sourceText, #translatedText {
+            background-color: lightgray;
+            color: black;
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            font-size: 1em;
+            margin-bottom: 20px;
+        }
+        ::placeholder {
+            color: rgb(108, 180, 74);
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="content">
+            <h1>Real Time Language Translator</h1>
+            <div class="grid">
+                <div class="relative">
+                    <select id="sourceLanguage">
+                        <option value="">Select source language</option>
+                        <!-- Language options will be dynamically populated -->
+                    </select>
+                </div>
+                <div class="relative">
+                    <select id="targetLanguage">
+                        <option value="">Select target language</option>
+                        <!-- Language options will be dynamically populated -->
+                    </select>
+                </div>
+            </div>
+            <textarea id="sourceText" rows="4" placeholder="Enter text to translate or record audio"></textarea>
+            <button id="recordButton">Record Audio</button>
+            <button id="translateButton">Translate</button>
+            <textarea id="translatedText" rows="4" readonly></textarea>
+            <audio id="audioPlayer" controls style="width: 100%; margin-top: 20px; display: none;"></audio>
+        </div>
+    </div>
+    <div class="footer">
+        &copy; 2024 Language Translator. All rights reserved by SinKu.
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            let isRecording = false;
+            let mediaRecorder;
+            let audioChunks = [];
+
+            const recordButton = document.getElementById('recordButton');
+            const translateButton = document.getElementById('translateButton');
+            const sourceLanguage = document.getElementById('sourceLanguage');
+            const targetLanguage = document.getElementById('targetLanguage');
+            const sourceText = document.getElementById('sourceText');
+            const translatedText = document.getElementById('translatedText');
+            const audioPlayer = document.getElementById('audioPlayer');
+
+            // nllb_lang_map definition goes here (skipped as per your request)
+            const nllb_lang_map = {
+                'ace': 'Acehnese', 'acm': 'Mesopotamian Arabic', 'acq': 'Taizzi-Adeni Arabic', 'aeb': 'Tunisian Arabic', 'af': 'Afrikaans',
+                'ajp': 'South Levantine Arabic', 'ak': 'Akan', 'als': 'Tosk Albanian', 'am': 'Amharic', 'apc': 'North Levantine Arabic',
+                'ar': 'Arabic', 'ars': 'Najdi Arabic', 'ary': 'Moroccan Arabic', 'arz': 'Egyptian Arabic', 'as': 'Assamese',
+                'ast': 'Asturian', 'awa': 'Awadhi', 'ayr': 'Aymara', 'azb': 'South Azerbaijani', 'azj': 'North Azerbaijani',
+                'ba': 'Bashkir', 'bm': 'Bambara', 'ban': 'Balinese', 'be': 'Belarusian', 'bem': 'Bemba', 'bn': 'Bengali',
+                'bho': 'Bhojpuri', 'bjn': 'Banjar', 'bo': 'Tibetan', 'bs': 'Bosnian', 'bug': 'Buginese', 'bg': 'Bulgarian',
+                'ca': 'Catalan', 'ceb': 'Cebuano', 'cs': 'Czech', 'cjk': 'Chokwe', 'ckb': 'Sorani Kurdish', 'crh': 'Crimean Tatar',
+                'cy': 'Welsh', 'da': 'Danish', 'de': 'German', 'dik': 'Dinka', 'dyu': 'Dyula', 'dz': 'Dzongkha',
+                'el': 'Greek', 'en': 'English', 'eo': 'Esperanto', 'et': 'Estonian', 'eu': 'Basque', 'ee': 'Ewe',
+                'fo': 'Faroese', 'fj': 'Fijian', 'fi': 'Finnish', 'fon': 'Fon', 'fr': 'French', 'fur': 'Friulian',
+                'fuv': 'Nigerian Fulfulde', 'gaz': 'Oromo', 'gd': 'Scottish Gaelic', 'ga': 'Irish', 'gl': 'Galician',
+                'gn': 'Guarani', 'gu': 'Gujarati', 'ht': 'Haitian Creole', 'ha': 'Hausa', 'he': 'Hebrew', 'hi': 'Hindi',
+                'hne': 'Chhattisgarhi', 'hr': 'Croatian', 'hu': 'Hungarian', 'hy': 'Armenian', 'ig': 'Igbo', 'ilo': 'Ilocano',
+                'id': 'Indonesian', 'is': 'Icelandic', 'it': 'Italian', 'jv': 'Javanese', 'ja': 'Japanese', 'kab': 'Kabyle',
+                'kac': 'Kachin', 'kam': 'Kamba', 'kn': 'Kannada', 'ks': 'Kashmiri', 'ka': 'Georgian', 'kk': 'Kazakh',
+                'kbp': 'Kabiye', 'kea': 'Cape Verdean Creole', 'khk': 'Halh Mongolian', 'km': 'Khmer', 'ki': 'Kikuyu',
+                'rw': 'Kinyarwanda', 'ky': 'Kyrgyz', 'kmb': 'Kimbundu', 'kg': 'Kongo', 'ko': 'Korean', 'lo': 'Lao',
+                'lv': 'Latvian', 'lij': 'Ligurian', 'li': 'Limburgish', 'ln': 'Lingala', 'lt': 'Lithuanian', 'lmo': 'Lombard',
+                'ltg': 'Latgalian', 'lb': 'Luxembourgish', 'lua': 'Luba-Kasai', 'lg': 'Ganda', 'luo': 'Luo', 'lus': 'Mizo',
+                'mag': 'Magahi', 'mai': 'Maithili', 'ml': 'Malayalam', 'mr': 'Marathi', 'min': 'Minangkabau', 'mk': 'Macedonian',
+                'plt': 'Plateau Malagasy', 'mt': 'Maltese', 'mni': 'Manipuri', 'mos': 'Mossi', 'mi': 'Maori', 'my': 'Burmese',
+                'nl': 'Dutch', 'nn': 'Norwegian Nynorsk', 'nb': 'Norwegian Bokmål', 'npi': 'Nepali', 'nso': 'Northern Sotho',
+                'nus': 'Nuer', 'ny': 'Nyanja', 'oc': 'Occitan', 'ory': 'Odia', 'pag': 'Pangasinan', 'pa': 'Punjabi',
+                'pap': 'Papiamento', 'pl': 'Polish', 'pt': 'Portuguese', 'prs': 'Dari', 'pbt': 'Pashto', 'pes': 'Iranian Persian',
+                'quy': 'Quechua', 'ro': 'Romanian', 'rn': 'Rundi', 'ru': 'Russian', 'sg': 'Sango', 'sa': 'Sanskrit',
+                'sat': 'Santali', 'scn': 'Sicilian', 'shn': 'Shan', 'si': 'Sinhala', 'sk': 'Slovak', 'sl': 'Slovenian',
+                'sm': 'Samoan', 'sn': 'Shona', 'sd': 'Sindhi', 'so': 'Somali', 'st': 'Southern Sotho', 'es': 'Spanish',
+                'sc': 'Sardinian', 'sr': 'Serbian', 'ss': 'Swati', 'su': 'Sundanese', 'sv': 'Swedish', 'sw': 'Swahili',
+                'szl': 'Silesian', 'ta': 'Tamil', 'taq': 'Tamasheq', 'tt': 'Tatar', 'te': 'Telugu', 'tg': 'Tajik',
+                'tl': 'Tagalog', 'th': 'Thai', 'ti': 'Tigrinya', 'tpi': 'Tok Pisin', 'tn': 'Tswana', 'ts': 'Tsonga',
+                'tk': 'Turkmen', 'tum': 'Tumbuka', 'tr': 'Turkish', 'tw': 'Twi', 'tzm': 'Central Atlas Tamazight',
+                'ug': 'Uyghur', 'uk': 'Ukrainian', 'umb': 'Umbundu', 'ur': 'Urdu', 'uzn': 'Northern Uzbek', 'vec': 'Venetian',
+                'vi': 'Vietnamese', 'war': 'Waray', 'wo': 'Wolof', 'xh': 'Xhosa', 'ydd': 'Eastern Yiddish', 'yo': 'Yoruba',
+                'yue': 'Cantonese', 'zh': 'Chinese', 'zsm': 'Standard Malay', 'zu': 'Zulu'
+            };
+
+            // Populate language dropdowns
+            function populateLanguageDropdowns() {
+                for (const [code, name] of Object.entries(nllb_lang_map)) {
+                    const option = new Option(name, code);
+                    sourceLanguage.add(option.cloneNode(true));
+                    targetLanguage.add(option);
+                }
+            }
+
+            populateLanguageDropdowns();
+
+            recordButton.addEventListener('click', function() {
+                if (!isRecording) {
+                    navigator.mediaDevices.getUserMedia({ audio: true })
+                        .then(stream => {
+                            mediaRecorder = new MediaRecorder(stream);
+                            mediaRecorder.start();
+
+                            mediaRecorder.addEventListener("dataavailable", event => {
+                                audioChunks.push(event.data);
+                            });
+
+                            mediaRecorder.addEventListener("stop", () => {
+                                const audioBlob = new Blob(audioChunks);
+                                const audioUrl = URL.createObjectURL(audioBlob);
+                                audioPlayer.src = audioUrl;
+                                audioPlayer.style.display = 'block';
+                            });
+
+                            isRecording = true;
+                            this.textContent = 'Stop Recording';
+                        });
+                } else {
+                    mediaRecorder.stop();
+                    isRecording = false;
+                    this.textContent = 'Record Audio';
+                }
+            });
+
+            translateButton.addEventListener('click', function() {
+                let formData = new FormData();
+                formData.append('source_lang', sourceLanguage.value);
+                formData.append('target_lang', targetLanguage.value);
+                formData.append('text', sourceText.value);
+
+                if (audioChunks.length > 0) {
+                    formData.append('audio', new Blob(audioChunks), 'audio.wav');
+                }
+
+                fetch('/translate', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    translatedText.value = data.translation;
+                    if (data.audio_url) {
+                        audioPlayer.src = data.audio_url;
+                        audioPlayer.style.display = 'block';
+                    } else {
+                        audioPlayer.style.display = 'none';
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+
+                audioChunks = [];
+            });
+        });
+    </script>
+</body>
+</html>

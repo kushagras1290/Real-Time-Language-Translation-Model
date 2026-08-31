@@ -1,0 +1,25 @@
+# Never ship these into the image.
+.venv/
+venv/
+models/
+legacy/
+web/
+node_modules/
+frontend/
+.git/
+.github/
+__pycache__/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+.env
+*.wav
+*.mp3
+*.png
+.vscode/
+.playwright-mcp/
+uploads/
+output/
+newfolder/
